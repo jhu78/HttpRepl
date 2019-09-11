@@ -12,6 +12,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using Microsoft.HttpRepl.Extensions;
 using Microsoft.HttpRepl.FileSystem;
 using Microsoft.HttpRepl.Formatting;
 using Microsoft.HttpRepl.Preferences;
@@ -139,8 +140,10 @@ namespace Microsoft.HttpRepl.Commands
             string headersTarget = commandInput.Options[ResponseHeadersFileOption].FirstOrDefault()?.Text ?? commandInput.Options[ResponseFileOption].FirstOrDefault()?.Text;
             string bodyTarget = commandInput.Options[ResponseBodyFileOption].FirstOrDefault()?.Text ?? commandInput.Options[ResponseFileOption].FirstOrDefault()?.Text;
 
+            Stopwatch watch = Stopwatch.StartNew();
             HttpResponseMessage response = await programState.Client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
-            await HandleResponseAsync(programState, commandInput, shellState.ConsoleManager, response, programState.EchoRequest, headersTarget, bodyTarget, cancellationToken).ConfigureAwait(false);
+            watch.Stop();
+            await HandleResponseAsync(programState, commandInput, shellState.ConsoleManager, response, programState.EchoRequest, headersTarget, bodyTarget, watch.Elapsed, cancellationToken).ConfigureAwait(false);
         }
 
         internal async Task CreateDirectoryStructureForSwaggerEndpointAsync(HttpState programState, CancellationToken cancellationToken)
@@ -277,7 +280,7 @@ namespace Microsoft.HttpRepl.Commands
             }
         }
 
-        private async Task HandleResponseAsync(HttpState programState, DefaultCommandInput<ICoreParseResult> commandInput, IConsoleManager consoleManager, HttpResponseMessage response, bool echoRequest, string headersTargetFile, string bodyTargetFile, CancellationToken cancellationToken)
+        private async Task HandleResponseAsync(HttpState programState, DefaultCommandInput<ICoreParseResult> commandInput, IConsoleManager consoleManager, HttpResponseMessage response, bool echoRequest, string headersTargetFile, string bodyTargetFile, TimeSpan elapsedTime, CancellationToken cancellationToken)
         {
             string protocolInfo;
 
@@ -289,7 +292,7 @@ namespace Microsoft.HttpRepl.Commands
 
                 // Only need to write out this separator if we've echoed the request
                 consoleManager.WriteLine();
-                consoleManager.WriteLine($"Response from {hostString}...".SetColor(requestConfig.AddressColor));
+                consoleManager.WriteLine($"Response from {hostString} took {elapsedTime.FormatDuration()} ...".SetColor(requestConfig.AddressColor));
                 consoleManager.WriteLine();
             }
 
